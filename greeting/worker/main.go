@@ -17,6 +17,7 @@ func main() {
 	w := worker.New(c, "greeting-tasks", worker.Options{})
 
 	w.RegisterWorkflow(greeting.GreetSomeone)
+	w.RegisterActivity(greeting.GreetInSpanish)
 
 	err = w.Run(worker.InterruptCh())
 	if err != nil {
