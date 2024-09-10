@@ -1,13 +1,25 @@
 package main
 
 import (
-	"fmt"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/worker"
 	"learning.temporal/greeting"
-	"os"
+	"log"
 )
 
 func main() {
-	name := os.Args[1]
-	greeting := greeting.GreetSomeone(name)
-	fmt.Println(greeting)
+	c, err := client.Dial(client.Options{})
+	if err != nil {
+		log.Fatalln("Unable to create client", err)
+	}
+	defer c.Close()
+
+	w := worker.New(c, "greeting-tasks", worker.Options{})
+
+	w.RegisterWorkflow(greeting.GreetSomeone)
+
+	err = w.Run(worker.InterruptCh())
+	if err != nil {
+		log.Fatalln("Unable to start worker", err)
+	}
 }

@@ -1,5 +1,7 @@
 package greeting
 
-func GreetSomeone(name string) string {
-	return "Hello " + name + "!"
+import "go.temporal.io/sdk/workflow"
+
+func GreetSomeone(ctx workflow.Context, name string) (string, error) {
+	return "Hello " + name + "!", nil
 }
