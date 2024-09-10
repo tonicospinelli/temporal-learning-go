@@ -18,6 +18,7 @@ func main() {
 
 	w.RegisterWorkflow(greeting.GreetSomeone)
 	w.RegisterActivity(greeting.GreetInSpanish)
+	w.RegisterActivity(greeting.FarewellInSpanish)
 
 	err = w.Run(worker.InterruptCh())
 	if err != nil {
