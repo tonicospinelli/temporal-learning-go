@@ -14,7 +14,7 @@ func main() {
 	}
 	defer c.Close()
 
-	w := worker.New(c, "greeting-tasks", worker.Options{})
+	w := worker.New(c, greeting.TaskQueue, worker.Options{})
 
 	w.RegisterWorkflow(greeting.GreetSomeone)
 	w.RegisterActivity(greeting.GreetInSpanish)

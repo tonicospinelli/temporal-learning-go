@@ -11,57 +11,85 @@ import (
 	"time"
 )
 
-func GreetSomeone(ctx workflow.Context, name string) (string, error) {
+const (
+	TaskQueue = "greeting-tasks"
+)
+
+type WorkflowInput struct {
+	Name         string
+	LanguageCode string
+}
+
+type WorkflowOutput struct {
+	GreetingMessage string
+	GoodbyeMessage  string
+}
+
+type ActivityInput struct {
+	Name         string
+	LanguageCode string
+}
+
+type ActivityOutput struct {
+	Message string
+}
+
+func GreetSomeone(ctx workflow.Context, input WorkflowInput) (WorkflowOutput, error) {
 	options := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Second * 5,
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
 
-	var spanishGreeting string
-	err := workflow.ExecuteActivity(ctx, GreetInSpanish, name).Get(ctx, &spanishGreeting)
+	greetingInput := ActivityInput{Name: input.Name, LanguageCode: input.LanguageCode}
+	var spanishGreeting ActivityOutput
+	err := workflow.ExecuteActivity(ctx, GreetInSpanish, greetingInput).Get(ctx, &spanishGreeting)
 	if err != nil {
-		return "", err
+		return WorkflowOutput{}, err
 	}
 
-	var spanishFarewell string
-	err = workflow.ExecuteActivity(ctx, FarewellInSpanish, name).Get(ctx, &spanishFarewell)
+	goodbyeInput := ActivityInput{Name: input.Name, LanguageCode: input.LanguageCode}
+	var spanishFarewell ActivityOutput
+	err = workflow.ExecuteActivity(ctx, FarewellInSpanish, goodbyeInput).Get(ctx, &spanishFarewell)
 	if err != nil {
-		return "", err
+		return WorkflowOutput{}, err
 	}
-	var helloGoodbye = "\n" + spanishGreeting + "\n" + spanishFarewell
-	return helloGoodbye, nil
+
+	output := WorkflowOutput{
+		GreetingMessage: spanishGreeting.Message,
+		GoodbyeMessage:  spanishFarewell.Message,
+	}
+	return output, nil
 }
 
-func FarewellInSpanish(ctx context.Context, name string) (string, error) {
-	greeting, err := callService(ctx, "get-spanish-farewell", name)
-	return greeting, err
+func FarewellInSpanish(ctx context.Context, input ActivityInput) (ActivityOutput, error) {
+	return callService(ctx, "get-spanish-farewell", input)
 }
 
-func GreetInSpanish(ctx context.Context, name string) (string, error) {
-	return callService(ctx, "get-spanish-greeting", name)
+func GreetInSpanish(ctx context.Context, input ActivityInput) (ActivityOutput, error) {
+	return callService(ctx, "get-spanish-greeting", input)
 }
 
-func callService(ctx context.Context, stem, name string) (string, error) {
-	base := "http://localhost:9999/%s?name=%s"
-	endpoint := fmt.Sprintf(base, stem, url.QueryEscape(name))
+func callService(ctx context.Context, stem string, input ActivityInput) (ActivityOutput, error) {
+	base := "http://localhost:9999/%s?name=%s&lang=%s"
+	endpoint := fmt.Sprintf(base, stem, url.QueryEscape(input.Name), url.QueryEscape(input.LanguageCode))
 
 	resp, err := http.Get(endpoint)
 	if err != nil {
-		return "", err
+		return ActivityOutput{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return ActivityOutput{}, err
 	}
 
 	translation := string(body)
 	status := resp.StatusCode
 	if status >= 400 {
 		message := fmt.Sprintf("HTTP Error %d: %s", status, translation)
-		return "", errors.New(message)
+		return ActivityOutput{}, errors.New(message)
 	}
 
-	return translation, nil
+	return ActivityOutput{Message: translation}, nil
 }

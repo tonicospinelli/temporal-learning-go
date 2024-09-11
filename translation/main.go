@@ -9,11 +9,28 @@ import (
 	"net/http"
 )
 
+var languagesGreeting = map[string]string{
+	"pt": "Olá %s!",
+	"en": "Hello %s!",
+	"es": "¡Hola, %s!",
+}
+var languagesFarewell = map[string]string{
+	"pt": "Tchau %s!",
+	"en": "Goodbye %s!",
+	"es": "¡Adiós, %s!",
+}
+
 func spanishGreetingHandler(w http.ResponseWriter, r *http.Request) {
+	lang := "en-us"
+	langs, ok := r.URL.Query()["lang"]
+	if ok && languagesGreeting[langs[0]] != "" {
+		lang = langs[0]
+	}
+
 	keys, ok := r.URL.Query()["name"]
 	if ok {
 		name := keys[0]
-		translation := fmt.Sprintf("¡Hola, %s!", name)
+		translation := fmt.Sprintf(languagesGreeting[lang], name)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, translation)
 	} else {
@@ -22,10 +39,16 @@ func spanishGreetingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func spanishFarewellHandler(w http.ResponseWriter, r *http.Request) {
+	lang := "en"
+	langs, ok := r.URL.Query()["lang"]
+	if ok && languagesFarewell[langs[0]] != "" {
+		lang = langs[0]
+	}
+
 	keys, ok := r.URL.Query()["name"]
 	if ok {
 		name := keys[0]
-		translation := fmt.Sprintf("¡Adiós, %s!", name)
+		translation := fmt.Sprintf(languagesFarewell[lang], name)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, translation)
 	} else {
