@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/workflow"
 	"io"
 	"net/http"
@@ -35,18 +36,27 @@ type ActivityOutput struct {
 }
 
 func GreetSomeone(ctx workflow.Context, input WorkflowInput) (WorkflowOutput, error) {
+	logger := workflow.GetLogger(ctx)
+	logger.Info("GreetSomeone Workflow Invoked", "Name", input.Name)
+
 	options := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Second * 5,
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
 
+	logger.Debug("Preparing to translate Hello", "LanguageCode", input.LanguageCode)
 	greetingInput := ActivityInput{Name: input.Name, LanguageCode: input.LanguageCode}
+
 	var spanishGreeting ActivityOutput
 	err := workflow.ExecuteActivity(ctx, GreetInSpanish, greetingInput).Get(ctx, &spanishGreeting)
 	if err != nil {
 		return WorkflowOutput{}, err
 	}
 
+	logger.Debug("Sleeping 5 seconds between translation calls")
+	workflow.Sleep(ctx, time.Second*5)
+
+	logger.Debug("Preparing to translate Goodbye", "LanguageCode", input.LanguageCode)
 	goodbyeInput := ActivityInput{Name: input.Name, LanguageCode: input.LanguageCode}
 	var spanishFarewell ActivityOutput
 	err = workflow.ExecuteActivity(ctx, FarewellInSpanish, goodbyeInput).Get(ctx, &spanishFarewell)
@@ -70,8 +80,11 @@ func GreetInSpanish(ctx context.Context, input ActivityInput) (ActivityOutput, e
 }
 
 func callService(ctx context.Context, stem string, input ActivityInput) (ActivityOutput, error) {
+	logger := activity.GetLogger(ctx)
 	base := "http://localhost:9999/%s?name=%s&lang=%s"
 	endpoint := fmt.Sprintf(base, stem, url.QueryEscape(input.Name), url.QueryEscape(input.LanguageCode))
+
+	logger.Debug("calling translation service", "TranslationEndpoint", endpoint)
 
 	resp, err := http.Get(endpoint)
 	if err != nil {
