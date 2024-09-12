@@ -47,26 +47,31 @@ func GreetSomeone(ctx workflow.Context, input WorkflowInput) (WorkflowOutput, er
 	logger.Debug("Preparing to translate Hello", "LanguageCode", input.LanguageCode)
 	greetingInput := ActivityInput{Name: input.Name, LanguageCode: input.LanguageCode}
 
-	var spanishGreeting ActivityOutput
-	err := workflow.ExecuteActivity(ctx, GreetInSpanish, greetingInput).Get(ctx, &spanishGreeting)
-	if err != nil {
-		return WorkflowOutput{}, err
-	}
+	var greet ActivityOutput
+	futureGreet := workflow.ExecuteActivity(ctx, GreetInSpanish, greetingInput)
 
 	logger.Debug("Sleeping 5 seconds between translation calls")
 	workflow.Sleep(ctx, time.Second*5)
 
 	logger.Debug("Preparing to translate Goodbye", "LanguageCode", input.LanguageCode)
+
 	goodbyeInput := ActivityInput{Name: input.Name, LanguageCode: input.LanguageCode}
-	var spanishFarewell ActivityOutput
-	err = workflow.ExecuteActivity(ctx, FarewellInSpanish, goodbyeInput).Get(ctx, &spanishFarewell)
+	var farewell ActivityOutput
+	futureFarewell := workflow.ExecuteActivity(ctx, FarewellInSpanish, goodbyeInput)
+
+	err := futureGreet.Get(ctx, &greet)
+	if err != nil {
+		return WorkflowOutput{}, err
+	}
+
+	err = futureFarewell.Get(ctx, &farewell)
 	if err != nil {
 		return WorkflowOutput{}, err
 	}
 
 	output := WorkflowOutput{
-		GreetingMessage: spanishGreeting.Message,
-		GoodbyeMessage:  spanishFarewell.Message,
+		GreetingMessage: greet.Message,
+		GoodbyeMessage:  farewell.Message,
 	}
 	return output, nil
 }
